@@ -596,14 +596,14 @@ const SellBillForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-6">
-      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-8">
-        <div className="mb-8 text-center">
-          <h2 className="text-3xl font-bold text-indigo-600 mb-2">Create Sales Invoice</h2>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-4 sm:p-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-8">
+        <div className="mb-6 sm:mb-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-indigo-600 mb-2">Create Sales Invoice</h2>
           <div className="h-1 w-20 bg-indigo-500 mx-auto rounded-full"></div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 sm:mb-8">
           <div className="space-y-4">
             <div className="flex flex-col">
               <label className="text-sm font-medium text-gray-700 mb-1">GST Number</label>
@@ -611,7 +611,7 @@ const SellBillForm = () => {
                 type="text"
                 name="gstNumber"
                 placeholder="Enter GST Number"
-                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-2 sm:p-3 transition-colors text-sm sm:text-base"
                 value={sellDetails.gstNumber}
                 onChange={handleDetailsChange}
                 required
@@ -623,7 +623,7 @@ const SellBillForm = () => {
                 type="text"
                 name="partyName"
                 placeholder="Enter Party Name"
-                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-2 sm:p-3 transition-colors text-sm sm:text-base"
                 value={sellDetails.partyName}
                 onChange={handleDetailsChange}
               />
@@ -638,7 +638,7 @@ const SellBillForm = () => {
                   type="text"
                   name="saleInvoiceNumber"
                   placeholder="Invoice #"
-                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-2 sm:p-3 transition-colors text-sm sm:text-base"
                   value={sellDetails.saleInvoiceNumber}
                   onChange={handleDetailsChange}
                 />
@@ -648,7 +648,7 @@ const SellBillForm = () => {
                 <input
                   type="date"
                   name="date"
-                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-2 sm:p-3 transition-colors text-sm sm:text-base"
                   value={sellDetails.date}
                   onChange={handleDetailsChange}
                 />
@@ -660,7 +660,7 @@ const SellBillForm = () => {
                 type="text"
                 name="receiptNumber"
                 placeholder="Receipt #"
-                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-2 sm:p-3 transition-colors text-sm sm:text-base"
                 value={sellDetails.receiptNumber}
                 onChange={handleDetailsChange}
               />
@@ -668,119 +668,121 @@ const SellBillForm = () => {
           </div>
         </div>
 
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold text-indigo-600 mb-4">Item Details</h3>
+        <div className="mb-6 sm:mb-8">
+          <h3 className="text-lg sm:text-xl font-semibold text-indigo-600 mb-3 sm:mb-4">Item Details</h3>
           <div className="rounded-xl border-2 border-indigo-50 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-indigo-600 text-white">
-                <tr>
-                  {["Item Name", "Batch", "Available", "Qty", "MRP", "Discount%", "GST No", "Amount"].map((header, idx) => (
-                    <th 
-                      key={idx}
-                      className="px-4 py-3 text-left text-sm font-medium last:text-right"
-                    >
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-indigo-50">
-                {items.map((item, index) => (
-                  <tr 
-                    key={index}
-                    className="hover:bg-indigo-50 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        name="itemName"
-                        value={item.itemName}
-                        onChange={(e) => handleItemChange(index, e)}
-                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        name="batch"
-                        value={item.batch}
-                        onChange={(e) => handleItemChange(index, e)}
-                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px] sm:min-w-0">
+                <thead className="bg-indigo-600 text-white">
+                  <tr>
+                    {["Item Name", "Batch", "Available", "Qty", "MRP", "Discount%", "GST No", "Amount"].map((header, idx) => (
+                      <th 
+                        key={idx}
+                        className="px-2 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium last:text-right"
                       >
-                        <option value="">Select Batch</option>
-                        {item.batchOptions.map((batch, idx) => (
-                          <option key={idx} value={batch.batchNumber}>
-                            {batch.batchNumber.replace(/[^a-zA-Z0-9]/g, '')}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {item.availableQuantity?.toString() ?? "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(index, e)}
-                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-                        min="0"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        name="mrp"
-                        value={item.mrp}
-                        disabled
-                        className="w-full rounded-md bg-indigo-50 border-indigo-100"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        name="discount"
-                        value={item.discount}
-                        onChange={(e) => handleItemChange(index, e)}
-                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-                        min="0"
-                        max="100"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        name="gstNo"
-                        value={sellDetails.gstNumber}
-                        readOnly
-                        className="w-full rounded-md bg-indigo-50 border-indigo-100"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-emerald-600">
-                      {item.amount || "-"}
-                    </td>
+                        {header}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-indigo-50">
+                  {items.map((item, index) => (
+                    <tr 
+                      key={index}
+                      className="hover:bg-indigo-50 transition-colors"
+                    >
+                      <td className="px-2 sm:px-4 py-2">
+                        <input
+                          type="text"
+                          name="itemName"
+                          value={item.itemName}
+                          onChange={(e) => handleItemChange(index, e)}
+                          className="w-full text-xs sm:text-sm rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <select
+                          name="batch"
+                          value={item.batch}
+                          onChange={(e) => handleItemChange(index, e)}
+                          className="w-full text-xs sm:text-sm rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                          <option value="">Select Batch</option>
+                          {item.batchOptions.map((batch, idx) => (
+                            <option key={idx} value={batch.batchNumber}>
+                              {batch.batchNumber.replace(/[^a-zA-Z0-9]/g, '')}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-center text-sm">
+                        {item.availableQuantity?.toString() ?? "-"}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <input
+                          type="number"
+                          name="quantity"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, e)}
+                          className="w-full text-xs sm:text-sm rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                          min="0"
+                        />
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <input
+                          type="number"
+                          name="mrp"
+                          value={item.mrp}
+                          disabled
+                          className="w-full text-xs sm:text-sm rounded-md bg-indigo-50 border-indigo-100"
+                        />
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <input
+                          type="number"
+                          name="discount"
+                          value={item.discount}
+                          onChange={(e) => handleItemChange(index, e)}
+                          className="w-full text-xs sm:text-sm rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                          min="0"
+                          max="100"
+                        />
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <input
+                          type="text"
+                          name="gstNo"
+                          value={sellDetails.gstNumber}
+                          readOnly
+                          className="w-full text-xs sm:text-sm rounded-md bg-indigo-50 border-indigo-100"
+                        />
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-right font-medium text-emerald-600 text-sm">
+                        {item.amount || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <button
             onClick={addItem}
-            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center"
+            className="px-4 py-2 sm:px-6 sm:py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center justify-center"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
             Add Item
           </button>
 
-          <div className="space-x-4">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 items-center">
             {message && (
-              <div className="inline-flex items-center bg-rose-100 text-rose-700 px-4 py-2 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <div className="w-full sm:w-auto inline-flex items-center bg-rose-100 text-rose-700 px-4 py-2 rounded-lg text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 {message}
@@ -789,12 +791,12 @@ const SellBillForm = () => {
             
             <button
               onClick={createSellBill}
-              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105"
+              className="w-full sm:w-auto px-6 py-2 sm:px-8 sm:py-3 text-sm sm:text-base bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105"
               disabled={loading}
             >
               {loading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5 mr-2" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
