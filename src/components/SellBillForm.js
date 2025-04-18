@@ -959,28 +959,33 @@
 // };
 
 // export default SellMedicine;
-
-import React, { useState, useCallback, useRef, memo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useTransition,
+  memo,
+} from "react";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
-// Memoized input component to prevent unnecessary re-renders
-const SellMedicineItem = memo(({ item, index, onChange }) => (
-  <div>
+const ItemInputRow = memo(({ item, index, handleItemChange }) => (
+  <div key={index}>
     <input
       type="text"
       name="itemName"
       value={item.itemName}
-      onChange={(e) => onChange(index, e)}
+      onChange={(e) => handleItemChange(index, e)}
       placeholder="Item Name"
     />
     <select
       name="batch"
       value={item.batch}
-      onChange={(e) => onChange(index, e)}
+      onChange={(e) => handleItemChange(index, e)}
     >
-      {item.batchOptions.map((batch) => (
-        <option key={batch.batchNumber} value={batch.batchNumber}>
+      {item.batchOptions.map((batch, i) => (
+        <option key={i} value={batch.batchNumber}>
           {batch.batchNumber}
         </option>
       ))}
@@ -990,7 +995,7 @@ const SellMedicineItem = memo(({ item, index, onChange }) => (
       name="quantity"
       value={item.quantity}
       min="1"
-      onChange={(e) => onChange(index, e)}
+      onChange={(e) => handleItemChange(index, e)}
       placeholder="Quantity"
     />
     <input type="text" name="mrp" value={item.mrp} disabled placeholder="MRP" />
@@ -999,69 +1004,99 @@ const SellMedicineItem = memo(({ item, index, onChange }) => (
       name="discount"
       value={item.discount}
       min="0"
-      onChange={(e) => onChange(index, e)}
+      onChange={(e) => handleItemChange(index, e)}
       placeholder="Discount %"
     />
-    <input type="text" name="amount" value={item.amount} disabled placeholder="Amount" />
+    <input
+      type="text"
+      name="amount"
+      value={item.amount}
+      disabled
+      placeholder="Amount"
+    />
   </div>
 ));
 
 const SellMedicine = () => {
-  // State initialization remains similar
-  const [items, setItems] = useState([...]);
-  const [sellDetails] = useState({...});
+  const [items, setItems] = useState([
+    {
+      itemName: "",
+      batch: "",
+      quantity: "",
+      mrp: "",
+      discount: "",
+      amount: "",
+      availableQuantity: 0,
+      batchOptions: [],
+    },
+  ]);
+  const [sellDetails, setSellDetails] = useState({
+    saleInvoiceNumber: "",
+    gstNumber: "",
+  });
   const [message, setMessage] = useState("");
-  
-  // Optimized refs
   const typingTimeoutRef = useRef(null);
   const latestInputRef = useRef("");
+  const [isPending, startTransition] = useTransition();
 
-  // Memoized API call with proper cleanup
   const fetchInventory = useCallback(async (index, itemName) => {
     if (!itemName.trim() || itemName.length < 3) return;
     if (latestInputRef.current !== itemName) return;
 
+    const email = localStorage.getItem("email");
     try {
-      const response = await fetch(`...`);
+      const response = await fetch(
+        `https://medicine-inventory-system.onrender.com/api/inventory?itemName=${encodeURIComponent(
+          itemName.toLowerCase()
+        )}&email=${encodeURIComponent(email)}`
+      );
       const data = await response.json();
 
-      setItems(prev => prev.map((item, i) => 
-        i === index ? {
-          ...item,
-          batchOptions: data.map(batch => ({
-            batchNumber: batch.batch.replace(/[^a-zA-Z0-9]/g, ""),
-            quantity: batch.quantity,
-            mrp: batch.mrp,
-          })),
-          batch: data[0]?.batch.replace(/[^a-zA-Z0-9]/g, "") || "",
-          availableQuantity: data[0]?.quantity || 0,
-          mrp: data[0]?.mrp?.toString() || "",
-        } : item
-      ));
+      startTransition(() => {
+        setItems((prevItems) => {
+          const updatedItems = [...prevItems];
+          updatedItems[index] = {
+            ...updatedItems[index],
+            batchOptions: data.map((batch) => ({
+              batchNumber: batch.batch.replace(/[^a-zA-Z0-9]/g, ""),
+              quantity: batch.quantity,
+              mrp: batch.mrp,
+            })),
+            batch:
+              data.length > 0
+                ? data[0].batch.replace(/[^a-zA-Z0-9]/g, "")
+                : "",
+            availableQuantity: data.length > 0 ? data[0].quantity : 0,
+            mrp: data.length > 0 ? data[0].mrp?.toString() || "" : "",
+          };
+          return updatedItems;
+        });
+        setMessage(data.length === 0 ? `No inventory found for ${itemName}` : "");
+      });
     } catch (error) {
-      setMessage("Error fetching data");
+      setMessage("Error fetching inventory data");
     }
   }, []);
 
-  // Optimized handler with reduced computations
   const handleItemChange = useCallback((index, event) => {
     const { name, value } = event.target;
     latestInputRef.current = value;
 
-    setItems(prev => {
-      const newItems = [...prev];
-      let currentItem = { ...newItems[index], [name]: value };
+    setItems((prevItems) => {
+      const updatedItems = [...prevItems];
+      let currentItem = { ...updatedItems[index], [name]: value };
 
       if (name === "itemName") {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
           fetchInventory(index, value);
-        }, 500); // Increased debounce time
+        }, 300);
       }
 
-      // Batch selection logic
       if (name === "batch") {
-        const selectedBatch = currentItem.batchOptions.find(b => b.batchNumber === value);
+        const selectedBatch = currentItem.batchOptions.find(
+          (batch) => batch.batchNumber === value
+        );
         if (selectedBatch) {
           currentItem = {
             ...currentItem,
@@ -1071,42 +1106,75 @@ const SellMedicine = () => {
         }
       }
 
-      // Calculations moved to useEffect
-      return newItems.map((item, i) => 
-        i === index ? currentItem : item
-      );
+      const quantity = parseFloat(currentItem.quantity) || 0;
+      const mrp = parseFloat(currentItem.mrp) || 0;
+      const discount = parseFloat(currentItem.discount) || 0;
+
+      if (quantity > currentItem.availableQuantity) {
+        setMessage(`Insufficient stock for ${currentItem.itemName}`);
+      } else if (quantity <= 0) {
+        setMessage("Quantity must be greater than 0");
+      } else {
+        const amount = quantity * mrp * (1 - discount / 100);
+        currentItem.amount = amount.toFixed(2);
+        setMessage("");
+      }
+
+      updatedItems[index] = currentItem;
+      return updatedItems;
     });
   }, [fetchInventory]);
 
-  // Separate effect for calculations
-  useEffect(() => {
-    const calculatedItems = items.map(item => {
-      const quantity = parseFloat(item.quantity) || 0;
-      const mrp = parseFloat(item.mrp) || 0;
-      const discount = parseFloat(item.discount) || 0;
-      
-      return {
-        ...item,
-        amount: quantity > 0 ? (quantity * mrp * (1 - discount / 100)).toFixed(2) : ""
-      };
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.text(`GSTIN: ${sellDetails.gstNumber}`, 10, 10);
+    doc.text(`Invoice Number: ${sellDetails.saleInvoiceNumber}`, 10, 20);
+
+    const tableColumn = ["Item Name", "Batch", "Qty", "MRP", "Discount%", "Amount"];
+    const tableRows = items.map((item) => [
+      item.itemName,
+      item.batch,
+      item.quantity,
+      item.mrp,
+      item.discount,
+      item.amount,
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      theme: "striped",
     });
-    
-    setItems(calculatedItems);
-  }, [items.map(item => `${item.quantity}-${item.mrp}-${item.discount}`)]);
+
+    const totalAmount = items.reduce(
+      (sum, item) => sum + parseFloat(item.amount || 0),
+      0
+    );
+    doc.text(
+      `Total Amount: ₹${totalAmount.toFixed(2)}`,
+      10,
+      doc.lastAutoTable.finalY + 10
+    );
+
+    doc.save("invoice.pdf");
+  };
 
   return (
     <div>
       {message && <p style={{ color: "red" }}>{message}</p>}
       {items.map((item, index) => (
-        <SellMedicineItem
+        <ItemInputRow
           key={index}
           item={item}
           index={index}
-          onChange={handleItemChange}
+          handleItemChange={handleItemChange}
         />
       ))}
       <button onClick={generatePDF}>Generate PDF</button>
     </div>
   );
 };
+
+export default SellMedicine;
 
