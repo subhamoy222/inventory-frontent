@@ -14,6 +14,7 @@ import ReturnBillForm from './components/ReturnBillForm'; // Ensure this is crea
 import ExpiryBillForm from './components/ExpiryBillForm';
 import BillGenerationDocs from './components/BillGenerationDocs';
 import PurchaseHistory from './components/PurchaseHistory';
+import { Toaster } from 'react-hot-toast';
 // import ExpiryBillList from './components/ExpiryBills/ExpiryBillList.js';
 // import CreateExpiryBill from './components/ExpiryBills/CreateExpiryBill.js';
 // import ViewExpiryBill from './components/ExpiryBills/ViewExpiryBill.js';
@@ -23,6 +24,7 @@ function App() {
   return (
     <Router>
       <div className="App">
+      <Toaster position="top-right" reverseOrder={false} />
         <Routes>
           <Route path="/" element={<Layout />} />
           <Route path="/dashboard" element={<Dashboard />} />

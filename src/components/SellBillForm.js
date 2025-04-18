@@ -332,486 +332,639 @@
 // export default SellBillForm;
 
 
-// import React, { useState, useEffect } from "react";
-// import jsPDF from "jspdf";
+import React, { useState, useEffect, useCallback, useReducer } from "react";
+import jsPDF from "jspdf";
 
-// const SellBillForm = () => {
-//   const [items, setItems] = useState([
-//     {
-//       itemName: "",
-//       batch: "",
-//       batchOptions: [],
-//       availableQuantity: 0,
-//       quantity: "",
-//       mrp: "",
-//       discount: "",
-//       amount: "",
-//       gstNo: ""
-//     },
-//   ]);
 
-//   const [sellDetails, setSellDetails] = useState({
-//     saleInvoiceNumber: "",
-//     date: new Date().toISOString().split("T")[0],
-//     receiptNumber: "",
-//     partyName: "",
-//     email: "",
-//     gstNumber: "",
-//   });
 
-//   const [message, setMessage] = useState("");
-//   const [loading, setLoading] = useState(false);
 
-//   useEffect(() => {
-//     setItems(prevItems => 
-//       prevItems.map(item => ({
-//         ...item,
-//         gstNo: sellDetails.gstNumber
-//       }))
-//     );
-//   }, [sellDetails.gstNumber]);
+///sadsnfkjfbadfbdmnfbdsm
+// Custom hook for managing items
+const useItems = (initialGstNumber) => {
+  // Initial state
+  const initialState = [
+    {
+      itemName: "",
+      batch: "",
+      batchOptions: [],
+      availableQuantity: 0,
+      quantity: "",
+      mrp: "",
+      discount: "",
+      amount: "",
+      gstNo: initialGstNumber
+    }
+  ];
 
-//   const handleItemChange = async (index, event) => {
-//     const { name, value } = event.target;
-//     const email = localStorage.getItem("email");
+  // Reducer for items state
+  const itemsReducer = (state, action) => {
+    switch (action.type) {
+      case 'UPDATE_ITEM':
+        return state.map((item, index) => 
+          index === action.index ? { ...item, ...action.payload } : item
+        );
+      
+      case 'ADD_ITEM':
+        return [
+          ...state,
+          {
+            itemName: "",
+            batch: "",
+            batchOptions: [],
+            availableQuantity: 0,
+            quantity: "",
+            mrp: "",
+            discount: "",
+            amount: "",
+            gstNo: initialGstNumber
+          }
+        ];
+      
+      case 'RESET_ITEMS':
+        return [{
+          itemName: "",
+          batch: "",
+          batchOptions: [],
+          availableQuantity: 0,
+          quantity: "",
+          mrp: "",
+          discount: "",
+          amount: "",
+          gstNo: initialGstNumber
+        }];
+      
+      case 'UPDATE_ALL_GST':
+        return state.map(item => ({
+          ...item,
+          gstNo: action.payload
+        }));
+      
+      default:
+        return state;
+    }
+  };
 
-//     setItems((prevItems) => {
-//       const updatedItems = [...prevItems];
-//       const currentItem = { 
-//         ...updatedItems[index], 
-//         [name]: value,
-//         gstNo: sellDetails.gstNumber
-//       };
+  const [items, dispatch] = useReducer(itemsReducer, initialState);
 
-//       if (name === "itemName" && value && email) {
-//         fetch(
-//           `https://medicine-inventory-system.onrender.com/api/inventory?itemName=${encodeURIComponent(
-//             value.toLowerCase()
-//           )}&email=${encodeURIComponent(email)}`
-//         )
-//           .then((response) => response.json())
-//           .then((data) => {
-//             if (data.length > 0) {
-//               currentItem.batchOptions = data.map((batch) => ({
-//                 batchNumber: batch.batch.replace(/[^a-zA-Z0-9]/g, ''),
-//                 quantity: batch.quantity,
-//                 mrp: batch.mrp,
-//                 gstNo: sellDetails.gstNumber
-//               }));
-              
-//               const sanitizedBatch = data[0].batch.replace(/[^a-zA-Z0-9]/g, '');
-//               currentItem.batch = sanitizedBatch;
-//               currentItem.availableQuantity = data[0].quantity;
-//               currentItem.mrp = data[0].mrp?.toString() || "";
-//               setMessage("");
-//             } else {
-//               setMessage(`No inventory found for ${value}`);
-//               currentItem.batchOptions = [];
-//               currentItem.batch = "";
-//               currentItem.availableQuantity = 0;
-//               currentItem.mrp = "";
-//             }
-//             updatedItems[index] = currentItem;
-//             setItems(updatedItems);
-//           })
-//           .catch(() => setMessage("Error fetching inventory data"));
-//         return updatedItems;
-//       }
+  // Update all items' GST number when it changes
+  useEffect(() => {
+    dispatch({ type: 'UPDATE_ALL_GST', payload: initialGstNumber });
+  }, [initialGstNumber]);
 
-//       if (name === "batch") {
-//         const cleanBatch = value.replace(/[^a-zA-Z0-9]/g, '');
-//         const selectedBatch = currentItem.batchOptions.find(
-//           (batch) => batch.batchNumber === cleanBatch
-//         );
+  // Helper functions
+  const updateItem = (index, payload) => {
+    dispatch({ type: 'UPDATE_ITEM', index, payload });
+  };
+
+  const addItem = () => {
+    dispatch({ type: 'ADD_ITEM' });
+  };
+
+  const resetItems = () => {
+    dispatch({ type: 'RESET_ITEMS' });
+  };
+
+  return { items, updateItem, addItem, resetItems };
+};
+
+const SellBillForm = () => {
+  const [sellDetails, setSellDetails] = useState({
+    saleInvoiceNumber: "",
+    date: new Date().toISOString().split("T")[0],
+    receiptNumber: "",
+    partyName: "",
+    email: "",
+    gstNumber: "",
+  });
+
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [activeItemIndex, setActiveItemIndex] = useState(null);
+
+  // Use the custom hook for items management
+  const { items, updateItem, addItem, resetItems } = useItems(sellDetails.gstNumber);
+
+  // Debounce function
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  // Fetch inventory data with debounce
+  const fetchInventoryData = useCallback(
+    debounce(async (itemName, email, index) => {
+      if (!itemName || !email) return;
+      
+      setSearchLoading(true);
+      try {
+        const response = await fetch(
+          `https://medicine-inventory-system.onrender.com/api/inventory?itemName=${encodeURIComponent(
+            itemName.toLowerCase()
+          )}&email=${encodeURIComponent(email)}`
+        );
+        const data = await response.json();
         
-//         if (selectedBatch) {
-//           currentItem.availableQuantity = selectedBatch.quantity;
-//           currentItem.mrp = selectedBatch.mrp?.toString() || "";
-//           currentItem.batch = cleanBatch;
-//         }
-//       }
+        if (data.length > 0) {
+          setSearchResults(data);
+          setShowAutocomplete(true);
+          
+          // Update the current item with the first result
+          const batchOptions = data.map((batch) => ({
+            batchNumber: batch.batch.replace(/[^a-zA-Z0-9]/g, ''),
+            quantity: batch.quantity,
+            mrp: batch.mrp,
+            gstNo: sellDetails.gstNumber
+          }));
+          
+          const sanitizedBatch = data[0].batch.replace(/[^a-zA-Z0-9]/g, '');
+          
+          updateItem(index, {
+            batchOptions,
+            batch: sanitizedBatch,
+            availableQuantity: data[0].quantity,
+            mrp: data[0].mrp?.toString() || "",
+          });
+          
+          setMessage("");
+        } else {
+          setSearchResults([]);
+          setShowAutocomplete(false);
+          setMessage(`No inventory found for ${itemName}`);
+          
+          // Reset the current item
+          updateItem(index, {
+            batchOptions: [],
+            batch: "",
+            availableQuantity: 0,
+            mrp: "",
+          });
+        }
+      } catch (error) {
+        setMessage("Error fetching inventory data");
+        setSearchResults([]);
+        setShowAutocomplete(false);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300),
+    [sellDetails.gstNumber, updateItem]
+  );
 
-//       // Quantity validation and amount calculation
-//       const quantity = parseFloat(currentItem.quantity) || 0;
-//       const mrp = parseFloat(currentItem.mrp) || 0;
-//       const discount = parseFloat(currentItem.discount) || 0;
-
-//       if (quantity > currentItem.availableQuantity) {
-//         setMessage(`Insufficient stock for ${currentItem.itemName}`);
-//       } else if (quantity <= 0) {
-//         setMessage("Quantity must be greater than 0");
-//       } else {
-//         const itemAmount = quantity * mrp;
-//         const discountedAmount = itemAmount - (itemAmount * discount) / 100;
-//         currentItem.amount = discountedAmount.toFixed(2);
-//         setMessage("");
-//       }
-
-//       updatedItems[index] = currentItem;
-//       return updatedItems;
-//     });
-//   };
-
-//   const handleDetailsChange = (event) => {
-//     const { name, value } = event.target;
-//     setSellDetails({ ...sellDetails, [name]: value });
-//   };
-
-//   const addItem = () => {
-//     setItems([
-//       ...items,
-//       {
-//         itemName: "",
-//         batch: "",
-//         batchOptions: [],
-//         availableQuantity: 0,
-//         quantity: "",
-//         mrp: "",
-//         discount: "",
-//         amount: "",
-//         gstNo: sellDetails.gstNumber
-//       },
-//     ]);
-//   };
-
-//   const generatePDF = () => {
-//     const doc = new jsPDF();
-//     doc.text(`GSTIN: ${sellDetails.gstNumber}`, 10, 10);
-//     doc.text(`Invoice Number: ${sellDetails.saleInvoiceNumber}`, 10, 20);
+  const handleItemChange = (index, event) => {
+    const { name, value } = event.target;
+    const email = localStorage.getItem("email");
     
-//     const headers = [
-//       "Item Name",
-//       "Batch",
-//       "Qty",
-//       "MRP",
-//       "Discount%",
-//       "Amount"
-//     ];
-
-//     let y = 40;
-//     headers.forEach((header, i) => {
-//       doc.text(header, 10 + i * 35, y);
-//     });
-
-//     items.forEach((item) => {
-//       y += 10;
-//       [
-//         item.itemName,
-//         item.batch,
-//         item.quantity,
-//         item.mrp,
-//         item.discount,
-//         item.amount
-//       ].forEach((value, i) => {
-//         doc.text(String(value || "-"), 10 + i * 35, y);
-//       });
-//     });
-
-//     const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-//     doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 10, y + 20);
+    // Handle item name change with debounced search
+    if (name === "itemName") {
+      updateItem(index, { itemName: value });
+      
+      if (value && email) {
+        setActiveItemIndex(index);
+        fetchInventoryData(value, email, index);
+      } else {
+        setShowAutocomplete(false);
+      }
+      return;
+    }
     
-//     doc.save("invoice.pdf");
-//   };
+    // Handle batch selection
+    if (name === "batch") {
+      const currentItem = items[index];
+      const cleanBatch = value.replace(/[^a-zA-Z0-9]/g, '');
+      const selectedBatch = currentItem.batchOptions.find(
+        (batch) => batch.batchNumber === cleanBatch
+      );
+      
+      if (selectedBatch) {
+        updateItem(index, {
+          batch: cleanBatch,
+          availableQuantity: selectedBatch.quantity,
+          mrp: selectedBatch.mrp?.toString() || "",
+        });
+      }
+      return;
+    }
+    
+    // Handle quantity, discount, and other fields
+    updateItem(index, { [name]: value });
+    
+    // Calculate amount if quantity, mrp, and discount are available
+    const currentItem = items[index];
+    const quantity = parseFloat(currentItem.quantity) || 0;
+    const mrp = parseFloat(currentItem.mrp) || 0;
+    const discount = parseFloat(currentItem.discount) || 0;
+    
+    if (quantity > currentItem.availableQuantity) {
+      setMessage(`Insufficient stock for ${currentItem.itemName}`);
+    } else if (quantity <= 0) {
+      setMessage("Quantity must be greater than 0");
+    } else {
+      const itemAmount = quantity * mrp;
+      const discountedAmount = itemAmount - (itemAmount * discount) / 100;
+      updateItem(index, { amount: discountedAmount.toFixed(2) });
+      setMessage("");
+    }
+  };
+  
+  // Handle autocomplete selection
+  const handleAutocompleteSelect = (itemName) => {
+    if (activeItemIndex !== null) {
+      updateItem(activeItemIndex, { itemName });
+      setShowAutocomplete(false);
+    }
+  };
+  
+  // Close autocomplete when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowAutocomplete(false);
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
 
-//   const createSellBill = async () => {
-//     const token = localStorage.getItem("token");
-//     const email = localStorage.getItem("email");
+  const handleDetailsChange = (event) => {
+    const { name, value } = event.target;
+    setSellDetails({ ...sellDetails, [name]: value });
+  };
 
-//     if (!sellDetails.gstNumber) {
-//       setMessage("GST Number is required");
-//       return;
-//     }
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.text(`GSTIN: ${sellDetails.gstNumber}`, 10, 10);
+    doc.text(`Invoice Number: ${sellDetails.saleInvoiceNumber}`, 10, 20);
+    
+    const headers = [
+      "Item Name",
+      "Batch",
+      "Qty",
+      "MRP",
+      "Discount%",
+      "Amount"
+    ];
 
-//     const gstMismatch = items.some(item => item.gstNo !== sellDetails.gstNumber);
-//     if (gstMismatch) {
-//       setMessage("All items must have the same GST Number");
-//       return;
-//     }
+    let y = 40;
+    headers.forEach((header, i) => {
+      doc.text(header, 10 + i * 35, y);
+    });
 
-//     const invalidQuantities = items.some(item => 
-//       item.availableQuantity < Number(item.quantity) || 
-//       Number(item.quantity) <= 0
-//     );
+    items.forEach((item) => {
+      y += 10;
+      [
+        item.itemName,
+        item.batch,
+        item.quantity,
+        item.mrp,
+        item.discount,
+        item.amount
+      ].forEach((value, i) => {
+        doc.text(String(value || "-"), 10 + i * 35, y);
+      });
+    });
 
-//     if (invalidQuantities) {
-//       setMessage("Invalid quantities detected");
-//       return;
-//     }
+    const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 10, y + 20);
+    
+    doc.save("invoice.pdf");
+  };
 
-//     const body = {
-//       ...sellDetails,
-//       items: items.map(({ batchOptions, availableQuantity, ...rest }) => ({
-//         ...rest,
-//         quantity: Number(rest.quantity),
-//         mrp: Number(rest.mrp),
-//         discount: Number(rest.discount),
-//         gstNo: rest.gstNo
-//       })),
-//       email
-//     };
+  const createSellBill = async () => {
+    const token = localStorage.getItem("token");
+    const email = localStorage.getItem("email");
 
-//     try {
-//       setLoading(true);
-//       const response = await fetch("https://medicine-inventory-system.onrender.com/api/bills/sale", {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//           Authorization: `Bearer ${token}`,
-//         },
-//         body: JSON.stringify(body),
-//       });
+    if (!sellDetails.gstNumber) {
+      setMessage("GST Number is required");
+      return;
+    }
 
-//       const responseData = await response.json();
+    const gstMismatch = items.some(item => item.gstNo !== sellDetails.gstNumber);
+    if (gstMismatch) {
+      setMessage("All items must have the same GST Number");
+      return;
+    }
 
-//       if (response.ok) {
-//         setMessage("Invoice created successfully!");
-//         generatePDF();
-//         setItems([{
-//           itemName: "",
-//           batch: "",
-//           batchOptions: [],
-//           availableQuantity: 0,
-//           quantity: "",
-//           mrp: "",
-//           discount: "",
-//           amount: "",
-//           gstNo: ""
-//         }]);
-//         setSellDetails({
-//           saleInvoiceNumber: "",
-//           date: new Date().toISOString().split("T")[0],
-//           receiptNumber: "",
-//           partyName: "",
-//           email: "",
-//           gstNumber: ""
-//         });
-//       } else {
-//         setMessage(responseData.message || "Failed to create invoice");
-//       }
-//     } catch (error) {
-//       setMessage("Error creating invoice");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+    const invalidQuantities = items.some(item => 
+      item.availableQuantity < Number(item.quantity) || 
+      Number(item.quantity) <= 0
+    );
 
-//   return (
-//     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-6">
-//       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-8">
-//         <div className="mb-8 text-center">
-//           <h2 className="text-3xl font-bold text-indigo-600 mb-2">Create Sales Invoice</h2>
-//           <div className="h-1 w-20 bg-indigo-500 mx-auto rounded-full"></div>
-//         </div>
+    if (invalidQuantities) {
+      setMessage("Invalid quantities detected");
+      return;
+    }
 
-//         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-//           <div className="space-y-4">
-//             <div className="flex flex-col">
-//               <label className="text-sm font-medium text-gray-700 mb-1">GST Number</label>
-//               <input
-//                 type="text"
-//                 name="gstNumber"
-//                 placeholder="Enter GST Number"
-//                 className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
-//                 value={sellDetails.gstNumber}
-//                 onChange={handleDetailsChange}
-//                 required
-//               />
-//             </div>
-//             <div className="flex flex-col">
-//               <label className="text-sm font-medium text-gray-700 mb-1">Party Name</label>
-//               <input
-//                 type="text"
-//                 name="partyName"
-//                 placeholder="Enter Party Name"
-//                 className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
-//                 value={sellDetails.partyName}
-//                 onChange={handleDetailsChange}
-//               />
-//             </div>
-//           </div>
+    const body = {
+      ...sellDetails,
+      items: items.map(({ batchOptions, availableQuantity, ...rest }) => ({
+        ...rest,
+        quantity: Number(rest.quantity),
+        mrp: Number(rest.mrp),
+        discount: Number(rest.discount),
+        gstNo: rest.gstNo
+      })),
+      email
+    };
 
-//           <div className="space-y-4">
-//             <div className="grid grid-cols-2 gap-4">
-//               <div className="flex flex-col">
-//                 <label className="text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
-//                 <input
-//                   type="text"
-//                   name="saleInvoiceNumber"
-//                   placeholder="Invoice #"
-//                   className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
-//                   value={sellDetails.saleInvoiceNumber}
-//                   onChange={handleDetailsChange}
-//                 />
-//               </div>
-//               <div className="flex flex-col">
-//                 <label className="text-sm font-medium text-gray-700 mb-1">Date</label>
-//                 <input
-//                   type="date"
-//                   name="date"
-//                   className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
-//                   value={sellDetails.date}
-//                   onChange={handleDetailsChange}
-//                 />
-//               </div>
-//             </div>
-//             <div className="flex flex-col">
-//               <label className="text-sm font-medium text-gray-700 mb-1">Receipt Number</label>
-//               <input
-//                 type="text"
-//                 name="receiptNumber"
-//                 placeholder="Receipt #"
-//                 className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
-//                 value={sellDetails.receiptNumber}
-//                 onChange={handleDetailsChange}
-//               />
-//             </div>
-//           </div>
-//         </div>
+    try {
+      setLoading(true);
+      const response = await fetch("https://medicine-inventory-system.onrender.com/api/bills/sale", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
 
-//         <div className="mb-8">
-//           <h3 className="text-xl font-semibold text-indigo-600 mb-4">Item Details</h3>
-//           <div className="rounded-xl border-2 border-indigo-50 overflow-hidden">
-//             <table className="w-full">
-//               <thead className="bg-indigo-600 text-white">
-//                 <tr>
-//                   {["Item Name", "Batch", "Available", "Qty", "MRP", "Discount%", "GST No", "Amount"].map((header, idx) => (
-//                     <th 
-//                       key={idx}
-//                       className="px-4 py-3 text-left text-sm font-medium last:text-right"
-//                     >
-//                       {header}
-//                     </th>
-//                   ))}
-//                 </tr>
-//               </thead>
-//               <tbody className="divide-y divide-indigo-50">
-//                 {items.map((item, index) => (
-//                   <tr 
-//                     key={index}
-//                     className="hover:bg-indigo-50 transition-colors"
-//                   >
-//                     <td className="px-4 py-3">
-//                       <input
-//                         type="text"
-//                         name="itemName"
-//                         value={item.itemName}
-//                         onChange={(e) => handleItemChange(index, e)}
-//                         className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-//                       />
-//                     </td>
-//                     <td className="px-4 py-3">
-//                       <select
-//                         name="batch"
-//                         value={item.batch}
-//                         onChange={(e) => handleItemChange(index, e)}
-//                         className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-//                       >
-//                         <option value="">Select Batch</option>
-//                         {item.batchOptions.map((batch, idx) => (
-//                           <option key={idx} value={batch.batchNumber}>
-//                             {batch.batchNumber.replace(/[^a-zA-Z0-9]/g, '')}
-//                           </option>
-//                         ))}
-//                       </select>
-//                     </td>
-//                     <td className="px-4 py-3 text-center">
-//                       {item.availableQuantity?.toString() ?? "-"}
-//                     </td>
-//                     <td className="px-4 py-3">
-//                       <input
-//                         type="number"
-//                         name="quantity"
-//                         value={item.quantity}
-//                         onChange={(e) => handleItemChange(index, e)}
-//                         className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-//                         min="0"
-//                       />
-//                     </td>
-//                     <td className="px-4 py-3">
-//                       <input
-//                         type="number"
-//                         name="mrp"
-//                         value={item.mrp}
-//                         disabled
-//                         className="w-full rounded-md bg-indigo-50 border-indigo-100"
-//                       />
-//                     </td>
-//                     <td className="px-4 py-3">
-//                       <input
-//                         type="number"
-//                         name="discount"
-//                         value={item.discount}
-//                         onChange={(e) => handleItemChange(index, e)}
-//                         className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
-//                         min="0"
-//                         max="100"
-//                       />
-//                     </td>
-//                     <td className="px-4 py-3">
-//                       <input
-//                         type="text"
-//                         name="gstNo"
-//                         value={sellDetails.gstNumber}
-//                         readOnly
-//                         className="w-full rounded-md bg-indigo-50 border-indigo-100"
-//                       />
-//                     </td>
-//                     <td className="px-4 py-3 text-right font-medium text-emerald-600">
-//                       {item.amount || "-"}
-//                     </td>
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         </div>
+      const responseData = await response.json();
 
-//         <div className="flex justify-between items-center">
-//           <button
-//             onClick={addItem}
-//             className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center"
-//           >
-//             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-//               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-//             </svg>
-//             Add Item
-//           </button>
+      if (response.ok) {
+        setMessage("Invoice created successfully!");
+        generatePDF();
+        resetItems();
+        setSellDetails({
+          saleInvoiceNumber: "",
+          date: new Date().toISOString().split("T")[0],
+          receiptNumber: "",
+          partyName: "",
+          email: "",
+          gstNumber: "",
+        });
+      } else {
+        setMessage(responseData.message || "Failed to create invoice");
+      }
+    } catch (error) {
+      setMessage("Error creating invoice");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-//           <div className="space-x-4">
-//             {message && (
-//               <div className="inline-flex items-center bg-rose-100 text-rose-700 px-4 py-2 rounded-lg">
-//                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-//                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-//                 </svg>
-//                 {message}
-//               </div>
-//             )}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-8">
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold text-indigo-600 mb-2">Create Sales Invoice</h2>
+          <div className="h-1 w-20 bg-indigo-500 mx-auto rounded-full"></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="space-y-4">
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">GST Number</label>
+              <input
+                type="text"
+                name="gstNumber"
+                placeholder="Enter GST Number"
+                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                value={sellDetails.gstNumber}
+                onChange={handleDetailsChange}
+                required
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Party Name</label>
+              <input
+                type="text"
+                name="partyName"
+                placeholder="Enter Party Name"
+                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                value={sellDetails.partyName}
+                onChange={handleDetailsChange}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                <input
+                  type="text"
+                  name="saleInvoiceNumber"
+                  placeholder="Invoice #"
+                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                  value={sellDetails.saleInvoiceNumber}
+                  onChange={handleDetailsChange}
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input
+                  type="date"
+                  name="date"
+                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                  value={sellDetails.date}
+                  onChange={handleDetailsChange}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-medium text-gray-700 mb-1">Receipt Number</label>
+              <input
+                type="text"
+                name="receiptNumber"
+                placeholder="Receipt #"
+                className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+                value={sellDetails.receiptNumber}
+                onChange={handleDetailsChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold text-indigo-600 mb-4">Item Details</h3>
+          <div className="rounded-xl border-2 border-indigo-50 ">
+            <table className="w-full">
+              <thead className="bg-indigo-600 text-white">
+                <tr>
+                  {["Item Name", "Batch", "Available", "Qty", "MRP", "Discount%", "GST No", "Amount"].map((header, idx) => (
+                    <th 
+                      key={idx}
+                      className="px-4 py-3 text-left text-sm font-medium last:text-right"
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-indigo-50">
+                {items.map((item, index) => (
+                  <tr 
+                    key={index}
+                    className="hover:bg-indigo-50 transition-colors"
+                  >
+                    <td className="px-4 py-3 relative">
+                      <input
+                        type="text"
+                        name="itemName"
+                        value={item.itemName}
+                        onChange={(e) => handleItemChange(index, e)}
+                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveItemIndex(index);
+                          if (item.itemName) {
+                            setShowAutocomplete(true);
+                          }
+                        }}
+                      />
+                      {showAutocomplete && activeItemIndex === index && (
+                        <div 
+                          className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {searchLoading ? (
+                            <div className="p-2 text-center text-gray-500">
+                              <svg className="animate-spin h-5 w-5 mx-auto" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                              </svg>
+                            </div>
+                          ) : searchResults.length > 0 ? (
+                            <ul>
+                              {searchResults.map((result, idx) => (
+                                <li 
+                                  key={idx}
+                                  className="px-4 py-2 hover:bg-indigo-50 cursor-pointer"
+                                  onClick={() => handleAutocompleteSelect(result.itemName)}
+                                >
+                                  {result.itemName}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="p-2 text-center text-gray-500">
+                              No results found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        name="batch"
+                        value={item.batch}
+                        onChange={(e) => handleItemChange(index, e)}
+                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                      >
+                        <option value="">Select Batch</option>
+                        {item.batchOptions.map((batch, idx) => (
+                          <option key={idx} value={batch.batchNumber}>
+                            {batch.batchNumber.replace(/[^a-zA-Z0-9]/g, '')}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {item.availableQuantity?.toString() ?? "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        name="quantity"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, e)}
+                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                        min="0"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        name="mrp"
+                        value={item.mrp}
+                        disabled
+                        className="w-full rounded-md bg-indigo-50 border-indigo-100"
+                      />
+                    </td>
+                    
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        name="discount"
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(index, e)}
+                        className="w-full rounded-md border-indigo-100 focus:border-indigo-500 focus:ring-indigo-500"
+                        min="0"
+                        max="100"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        name="gstNo"
+                        value={sellDetails.gstNumber}
+                        readOnly
+                        className="w-full rounded-md bg-indigo-50 border-indigo-100"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-emerald-600">
+                      {item.amount || "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <button
+            onClick={addItem}
+            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            Add Item
+          </button>
+
+          <div className="space-x-4">
+            {message && (
+              <div className="inline-flex items-center bg-rose-100 text-rose-700 px-4 py-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {message}
+              </div>
+            )}
+           
             
-//             <button
-//               onClick={createSellBill}
-//               className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105"
-//               disabled={loading}
-//             >
-//               {loading ? (
-//                 <span className="flex items-center">
-//                   <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
-//                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-//                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-//                   </svg>
-//                   Processing...
-//                 </span>
-//               ) : (
-//                 "Create Sales Invoice"
-//               )}
-//             </button>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
+            <button
+              onClick={createSellBill}
+              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all transform hover:scale-105"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                "Create Sales Invoice"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-// export default SellBillForm;
+export default SellBillForm;
 // import React, { useState, useEffect, useCallback, useRef } from "react";
 // import { jsPDF } from "jspdf";
 // import "jspdf-autotable";
@@ -958,211 +1111,4 @@
 //   );
 // };
 
-// export default SellMedicine;
-import React, { useEffect, useState } from "react";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-
-const SellMedicine = () => {
-  const [sellDetails, setSellDetails] = useState({
-    saleInvoiceNumber: "",
-    receiptNumber: "",
-    date: "",
-    partyName: "",
-    gstNumber: "",
-    email: "",
-  });
-
-  const [items, setItems] = useState([
-    { itemName: "", batch: "", quantity: "", mrp: "", discount: "" },
-  ]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("email");
-    if (stored) {
-      setSellDetails((prev) => ({ ...prev, email: stored }));
-    }
-  }, []);
-
-  const handleItemChange = (index, field, value) => {
-    const updatedItems = [...items];
-    updatedItems[index][field] = value;
-    setItems(updatedItems);
-  };
-
-  const addItem = () => {
-    setItems([...items, { itemName: "", batch: "", quantity: "", mrp: "", discount: "" }]);
-  };
-
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-
-    doc.text(`Invoice No: ${sellDetails.saleInvoiceNumber}`, 10, 10);
-    doc.text(`Receipt No: ${sellDetails.receiptNumber}`, 10, 18);
-    doc.text(`Date: ${sellDetails.date}`, 10, 26);
-    doc.text(`Party Name: ${sellDetails.partyName}`, 10, 34);
-    doc.text(`GST No: ${sellDetails.gstNumber}`, 10, 42);
-    doc.text(`Email: ${sellDetails.email}`, 10, 50);
-
-    const tableColumn = ["Item Name", "Batch", "Qty", "MRP", "Discount%", "Amount"];
-    const tableRows = items.map((item) => {
-      const amount = (
-        (parseFloat(item.quantity || 0) * parseFloat(item.mrp || 0) *
-          (1 - parseFloat(item.discount || 0) / 100)) || 0
-      ).toFixed(2);
-      return [
-        item.itemName,
-        item.batch,
-        item.quantity,
-        item.mrp,
-        item.discount,
-        amount,
-      ];
-    });
-
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 60,
-    });
-
-    const totalAmount = items.reduce((sum, item) => {
-      const amt =
-        parseFloat(item.quantity || 0) *
-        parseFloat(item.mrp || 0) *
-        (1 - parseFloat(item.discount || 0) / 100);
-      return sum + (isNaN(amt) ? 0 : amt);
-    }, 0);
-
-    doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 10, doc.lastAutoTable.finalY + 10);
-    doc.save("invoice.pdf");
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-xl p-6">
-        <h1 className="text-2xl font-bold text-blue-700 text-center mb-6">
-          Sell Bill Form
-        </h1>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Invoice No"
-            value={sellDetails.saleInvoiceNumber}
-            onChange={(e) =>
-              setSellDetails({ ...sellDetails, saleInvoiceNumber: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="Receipt No"
-            value={sellDetails.receiptNumber}
-            onChange={(e) =>
-              setSellDetails({ ...sellDetails, receiptNumber: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <input
-            type="date"
-            placeholder="Date"
-            value={sellDetails.date}
-            onChange={(e) =>
-              setSellDetails({ ...sellDetails, date: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="Party Name"
-            value={sellDetails.partyName}
-            onChange={(e) =>
-              setSellDetails({ ...sellDetails, partyName: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="GST No"
-            value={sellDetails.gstNumber}
-            onChange={(e) =>
-              setSellDetails({ ...sellDetails, gstNumber: e.target.value })
-            }
-            className="border p-2 rounded"
-          />
-          <input
-            type="email"
-            placeholder="Email (from localStorage)"
-            value={sellDetails.email}
-            disabled
-            className="border p-2 rounded bg-gray-100"
-          />
-        </div>
-
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">Medicine Items</h2>
-        <div className="space-y-4">
-          {items.map((item, index) => (
-            <div key={index} className="grid grid-cols-2 sm:grid-cols-6 gap-2">
-              <input
-                type="text"
-                placeholder="Item Name"
-                value={item.itemName}
-                onChange={(e) => handleItemChange(index, "itemName", e.target.value)}
-                className="border p-2 rounded"
-              />
-              <input
-                type="text"
-                placeholder="Batch"
-                value={item.batch}
-                onChange={(e) => handleItemChange(index, "batch", e.target.value)}
-                className="border p-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="Qty"
-                value={item.quantity}
-                onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-                className="border p-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="MRP"
-                value={item.mrp}
-                onChange={(e) => handleItemChange(index, "mrp", e.target.value)}
-                className="border p-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="Discount %"
-                value={item.discount}
-                onChange={(e) => handleItemChange(index, "discount", e.target.value)}
-                className="border p-2 rounded"
-              />
-            </div>
-          ))}
-          <button
-            onClick={addItem}
-            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            + Add Another Item
-          </button>
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={generatePDF}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition"
-          >
-            Download Invoice PDF
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default SellMedicine;
-
+// export default SellMedicine temp;
