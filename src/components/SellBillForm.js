@@ -959,219 +959,207 @@
 // };
 
 // export default SellMedicine;
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useTransition,
-  memo,
-} from "react";
+import React, { useEffect, useState } from "react";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
-const ItemInputRow = memo(({ item, index, handleItemChange }) => (
-  <div key={index}>
-    <input
-      type="text"
-      name="itemName"
-      value={item.itemName}
-      onChange={(e) => handleItemChange(index, e)}
-      placeholder="Item Name"
-    />
-    <select
-      name="batch"
-      value={item.batch}
-      onChange={(e) => handleItemChange(index, e)}
-    >
-      {item.batchOptions.map((batch, i) => (
-        <option key={i} value={batch.batchNumber}>
-          {batch.batchNumber}
-        </option>
-      ))}
-    </select>
-    <input
-      type="number"
-      name="quantity"
-      value={item.quantity}
-      min="1"
-      onChange={(e) => handleItemChange(index, e)}
-      placeholder="Quantity"
-    />
-    <input type="text" name="mrp" value={item.mrp} disabled placeholder="MRP" />
-    <input
-      type="number"
-      name="discount"
-      value={item.discount}
-      min="0"
-      onChange={(e) => handleItemChange(index, e)}
-      placeholder="Discount %"
-    />
-    <input
-      type="text"
-      name="amount"
-      value={item.amount}
-      disabled
-      placeholder="Amount"
-    />
-  </div>
-));
-
 const SellMedicine = () => {
-  const [items, setItems] = useState([
-    {
-      itemName: "",
-      batch: "",
-      quantity: "",
-      mrp: "",
-      discount: "",
-      amount: "",
-      availableQuantity: 0,
-      batchOptions: [],
-    },
-  ]);
   const [sellDetails, setSellDetails] = useState({
     saleInvoiceNumber: "",
+    receiptNumber: "",
+    date: "",
+    partyName: "",
     gstNumber: "",
+    email: "",
   });
-  const [message, setMessage] = useState("");
-  const typingTimeoutRef = useRef(null);
-  const latestInputRef = useRef("");
-  const [isPending, startTransition] = useTransition();
 
-  const fetchInventory = useCallback(async (index, itemName) => {
-    if (!itemName.trim() || itemName.length < 3) return;
-    if (latestInputRef.current !== itemName) return;
+  const [items, setItems] = useState([
+    { itemName: "", batch: "", quantity: "", mrp: "", discount: "" },
+  ]);
 
-    const email = localStorage.getItem("email");
-    try {
-      const response = await fetch(
-        `https://medicine-inventory-system.onrender.com/api/inventory?itemName=${encodeURIComponent(
-          itemName.toLowerCase()
-        )}&email=${encodeURIComponent(email)}`
-      );
-      const data = await response.json();
-
-      startTransition(() => {
-        setItems((prevItems) => {
-          const updatedItems = [...prevItems];
-          updatedItems[index] = {
-            ...updatedItems[index],
-            batchOptions: data.map((batch) => ({
-              batchNumber: batch.batch.replace(/[^a-zA-Z0-9]/g, ""),
-              quantity: batch.quantity,
-              mrp: batch.mrp,
-            })),
-            batch:
-              data.length > 0
-                ? data[0].batch.replace(/[^a-zA-Z0-9]/g, "")
-                : "",
-            availableQuantity: data.length > 0 ? data[0].quantity : 0,
-            mrp: data.length > 0 ? data[0].mrp?.toString() || "" : "",
-          };
-          return updatedItems;
-        });
-        setMessage(data.length === 0 ? `No inventory found for ${itemName}` : "");
-      });
-    } catch (error) {
-      setMessage("Error fetching inventory data");
+  useEffect(() => {
+    const stored = localStorage.getItem("email");
+    if (stored) {
+      setSellDetails((prev) => ({ ...prev, email: stored }));
     }
   }, []);
 
-  const handleItemChange = useCallback((index, event) => {
-    const { name, value } = event.target;
-    latestInputRef.current = value;
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...items];
+    updatedItems[index][field] = value;
+    setItems(updatedItems);
+  };
 
-    setItems((prevItems) => {
-      const updatedItems = [...prevItems];
-      let currentItem = { ...updatedItems[index], [name]: value };
-
-      if (name === "itemName") {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => {
-          fetchInventory(index, value);
-        }, 300);
-      }
-
-      if (name === "batch") {
-        const selectedBatch = currentItem.batchOptions.find(
-          (batch) => batch.batchNumber === value
-        );
-        if (selectedBatch) {
-          currentItem = {
-            ...currentItem,
-            availableQuantity: selectedBatch.quantity,
-            mrp: selectedBatch.mrp?.toString() || "",
-          };
-        }
-      }
-
-      const quantity = parseFloat(currentItem.quantity) || 0;
-      const mrp = parseFloat(currentItem.mrp) || 0;
-      const discount = parseFloat(currentItem.discount) || 0;
-
-      if (quantity > currentItem.availableQuantity) {
-        setMessage(`Insufficient stock for ${currentItem.itemName}`);
-      } else if (quantity <= 0) {
-        setMessage("Quantity must be greater than 0");
-      } else {
-        const amount = quantity * mrp * (1 - discount / 100);
-        currentItem.amount = amount.toFixed(2);
-        setMessage("");
-      }
-
-      updatedItems[index] = currentItem;
-      return updatedItems;
-    });
-  }, [fetchInventory]);
+  const addItem = () => {
+    setItems([...items, { itemName: "", batch: "", quantity: "", mrp: "", discount: "" }]);
+  };
 
   const generatePDF = () => {
     const doc = new jsPDF();
-    doc.text(`GSTIN: ${sellDetails.gstNumber}`, 10, 10);
-    doc.text(`Invoice Number: ${sellDetails.saleInvoiceNumber}`, 10, 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+
+    doc.text(`Invoice No: ${sellDetails.saleInvoiceNumber}`, 10, 10);
+    doc.text(`Receipt No: ${sellDetails.receiptNumber}`, 10, 18);
+    doc.text(`Date: ${sellDetails.date}`, 10, 26);
+    doc.text(`Party Name: ${sellDetails.partyName}`, 10, 34);
+    doc.text(`GST No: ${sellDetails.gstNumber}`, 10, 42);
+    doc.text(`Email: ${sellDetails.email}`, 10, 50);
 
     const tableColumn = ["Item Name", "Batch", "Qty", "MRP", "Discount%", "Amount"];
-    const tableRows = items.map((item) => [
-      item.itemName,
-      item.batch,
-      item.quantity,
-      item.mrp,
-      item.discount,
-      item.amount,
-    ]);
+    const tableRows = items.map((item) => {
+      const amount = (
+        (parseFloat(item.quantity || 0) * parseFloat(item.mrp || 0) *
+          (1 - parseFloat(item.discount || 0) / 100)) || 0
+      ).toFixed(2);
+      return [
+        item.itemName,
+        item.batch,
+        item.quantity,
+        item.mrp,
+        item.discount,
+        amount,
+      ];
+    });
 
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 30,
-      theme: "striped",
+      startY: 60,
     });
 
-    const totalAmount = items.reduce(
-      (sum, item) => sum + parseFloat(item.amount || 0),
-      0
-    );
-    doc.text(
-      `Total Amount: ₹${totalAmount.toFixed(2)}`,
-      10,
-      doc.lastAutoTable.finalY + 10
-    );
+    const totalAmount = items.reduce((sum, item) => {
+      const amt =
+        parseFloat(item.quantity || 0) *
+        parseFloat(item.mrp || 0) *
+        (1 - parseFloat(item.discount || 0) / 100);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
 
+    doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 10, doc.lastAutoTable.finalY + 10);
     doc.save("invoice.pdf");
   };
 
   return (
-    <div>
-      {message && <p style={{ color: "red" }}>{message}</p>}
-      {items.map((item, index) => (
-        <ItemInputRow
-          key={index}
-          item={item}
-          index={index}
-          handleItemChange={handleItemChange}
-        />
-      ))}
-      <button onClick={generatePDF}>Generate PDF</button>
+    <div className="min-h-screen bg-gray-100 py-10 px-4">
+      <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-xl p-6">
+        <h1 className="text-2xl font-bold text-blue-700 text-center mb-6">
+          Sell Bill Form
+        </h1>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <input
+            type="text"
+            placeholder="Invoice No"
+            value={sellDetails.saleInvoiceNumber}
+            onChange={(e) =>
+              setSellDetails({ ...sellDetails, saleInvoiceNumber: e.target.value })
+            }
+            className="border p-2 rounded"
+          />
+          <input
+            type="text"
+            placeholder="Receipt No"
+            value={sellDetails.receiptNumber}
+            onChange={(e) =>
+              setSellDetails({ ...sellDetails, receiptNumber: e.target.value })
+            }
+            className="border p-2 rounded"
+          />
+          <input
+            type="date"
+            placeholder="Date"
+            value={sellDetails.date}
+            onChange={(e) =>
+              setSellDetails({ ...sellDetails, date: e.target.value })
+            }
+            className="border p-2 rounded"
+          />
+          <input
+            type="text"
+            placeholder="Party Name"
+            value={sellDetails.partyName}
+            onChange={(e) =>
+              setSellDetails({ ...sellDetails, partyName: e.target.value })
+            }
+            className="border p-2 rounded"
+          />
+          <input
+            type="text"
+            placeholder="GST No"
+            value={sellDetails.gstNumber}
+            onChange={(e) =>
+              setSellDetails({ ...sellDetails, gstNumber: e.target.value })
+            }
+            className="border p-2 rounded"
+          />
+          <input
+            type="email"
+            placeholder="Email (from localStorage)"
+            value={sellDetails.email}
+            disabled
+            className="border p-2 rounded bg-gray-100"
+          />
+        </div>
+
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Medicine Items</h2>
+        <div className="space-y-4">
+          {items.map((item, index) => (
+            <div key={index} className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <input
+                type="text"
+                placeholder="Item Name"
+                value={item.itemName}
+                onChange={(e) => handleItemChange(index, "itemName", e.target.value)}
+                className="border p-2 rounded"
+              />
+              <input
+                type="text"
+                placeholder="Batch"
+                value={item.batch}
+                onChange={(e) => handleItemChange(index, "batch", e.target.value)}
+                className="border p-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="Qty"
+                value={item.quantity}
+                onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                className="border p-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="MRP"
+                value={item.mrp}
+                onChange={(e) => handleItemChange(index, "mrp", e.target.value)}
+                className="border p-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="Discount %"
+                value={item.discount}
+                onChange={(e) => handleItemChange(index, "discount", e.target.value)}
+                className="border p-2 rounded"
+              />
+            </div>
+          ))}
+          <button
+            onClick={addItem}
+            className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
+            + Add Another Item
+          </button>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={generatePDF}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition"
+          >
+            Download Invoice PDF
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
