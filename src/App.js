@@ -14,6 +14,7 @@ import ReturnBillForm from './components/ReturnBillForm'; // Ensure this is crea
 import ExpiryBillForm from './components/ExpiryBillForm';
 import BillGenerationDocs from './components/BillGenerationDocs';
 import PurchaseHistory from './components/PurchaseHistory';
+import PartyInvoiceSearch from './components/PartyInvoiceSearch';
 import { Toaster } from 'react-hot-toast';
 // import ExpiryBillList from './components/ExpiryBills/ExpiryBillList.js';
 // import CreateExpiryBill from './components/ExpiryBills/CreateExpiryBill.js';
@@ -43,6 +44,7 @@ function App() {
           <Route path="/return-bill" element={<ReturnBillForm />} />
           <Route path="/expiry-bill" element={<ExpiryBillForm />} />
           <Route path="/purchase-history" element={<PurchaseHistory />} />
+          <Route path="/party-invoices" element={<PartyInvoiceSearch />} />
         </Routes>
       </div>
     </Router>
