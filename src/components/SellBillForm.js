@@ -335,10 +335,6 @@
 import React, { useState, useEffect, useCallback, useReducer } from "react";
 import jsPDF from "jspdf";
 
-
-
-
-///sadsnfkjfbadfbdmnfbdsm
 // Custom hook for managing items
 const useItems = (initialGstNumber) => {
   // Initial state
@@ -429,13 +425,36 @@ const useItems = (initialGstNumber) => {
 
 const SellBillForm = () => {
   const [sellDetails, setSellDetails] = useState({
-    saleInvoiceNumber: "",
+    saleInvoiceNumber: "INV005",
     date: new Date().toISOString().split("T")[0],
     receiptNumber: "",
     partyName: "",
     email: "",
     gstNumber: "",
   });
+
+  // Add state for tracking last invoice number
+  const [lastInvoiceNumber, setLastInvoiceNumber] = useState(5);
+
+  // Function to generate next invoice number
+  const generateNextInvoiceNumber = () => {
+    const nextNumber = lastInvoiceNumber + 1;
+    setLastInvoiceNumber(nextNumber);
+    return `INV${String(nextNumber).padStart(3, '0')}`;
+  };
+
+  // Reset function to also handle invoice number generation
+  const resetForm = () => {
+    setSellDetails(prev => ({
+      ...prev,
+      saleInvoiceNumber: generateNextInvoiceNumber(),
+      receiptNumber: "",
+      partyName: "",
+      email: "",
+      gstNumber: "",
+      date: new Date().toISOString().split("T")[0],
+    }));
+  };
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -571,6 +590,13 @@ const SellBillForm = () => {
       setMessage("");
     }
   };
+
+  const handleDetailsChange = (event) => {
+    const { name, value } = event.target;
+    // Prevent changing invoice number
+    if (name === 'saleInvoiceNumber') return;
+    setSellDetails({ ...sellDetails, [name]: value });
+  };
   
   // Handle autocomplete selection
   const handleAutocompleteSelect = (itemName) => {
@@ -591,11 +617,6 @@ const SellBillForm = () => {
       document.removeEventListener('click', handleClickOutside);
     };
   }, []);
-
-  const handleDetailsChange = (event) => {
-    const { name, value } = event.target;
-    setSellDetails({ ...sellDetails, [name]: value });
-  };
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -690,14 +711,7 @@ const SellBillForm = () => {
         setMessage("Invoice created successfully!");
         generatePDF();
         resetItems();
-        setSellDetails({
-          saleInvoiceNumber: "",
-          date: new Date().toISOString().split("T")[0],
-          receiptNumber: "",
-          partyName: "",
-          email: "",
-          gstNumber: "",
-        });
+        resetForm(); // Use the new reset function
       } else {
         setMessage(responseData.message || "Failed to create invoice");
       }
@@ -750,10 +764,9 @@ const SellBillForm = () => {
                 <input
                   type="text"
                   name="saleInvoiceNumber"
-                  placeholder="Invoice #"
-                  className="rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
                   value={sellDetails.saleInvoiceNumber}
-                  onChange={handleDetailsChange}
+                  className="rounded-lg border-2 border-indigo-100 bg-gray-100 p-3 transition-colors"
+                  readOnly
                 />
               </div>
               <div className="flex flex-col">
@@ -964,7 +977,7 @@ const SellBillForm = () => {
   );
 };
 
-export default SellBillForm;
+export default SellBillForm; 
 // import React, { useState, useEffect, useCallback, useRef } from "react";
 // import { jsPDF } from "jspdf";
 // import "jspdf-autotable";
