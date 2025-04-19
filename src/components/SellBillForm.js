@@ -120,7 +120,7 @@ const SellBillForm = () => {
         console.log('Fetching next invoice number with token:', token);
         console.log('User email:', email);
         
-        const response = await fetch('http://localhost:5000/api/bills/next-invoice-number', {
+        const response = await fetch('https://medicine-inventory-system.onrender.com/api/bills/next-invoice-number', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -172,7 +172,7 @@ const SellBillForm = () => {
       
       console.log("Generating next invoice number with:", { token, email });
       
-      const response = await fetch("http://localhost:5000/api/bills/next-invoice-number", {
+      const response = await fetch("https://medicine-inventory-system.onrender.com/api/bills/next-invoice-number", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

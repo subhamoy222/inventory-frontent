@@ -65,7 +65,7 @@ const ReturnBillForm = () => {
       const email = localStorage.getItem('email');
 
       const response = await axios.post(
-        'http://localhost:5000/api/bills/check-invoice',
+        'https://medicine-inventory-system.onrender.com/api/bills/check-invoice',
         {
           invoiceNumber: formData.invoiceNumber,
           email
@@ -160,7 +160,7 @@ const ReturnBillForm = () => {
       }
 
       const response = await axios.post(
-        'http://localhost:5000/api/bills/return',
+        'https://medicine-inventory-system.onrender.com/api/bills/return',
         {
           ...formData,
           email
