@@ -1,85 +1,6 @@
-// import React, { useState } from 'react';
-// import '../App.css'; // Import App.css for styling
-// import axios from "axios";
-// import { useNavigate } from 'react-router-dom'; // Import useNavigate for routing
-
-// const Login = () => {
-//   const [formData, setFormData] = useState({
-//     email: '',
-//     password: '',
-//   });
-//   const [error, setError] = useState('');
-//   const [loading, setLoading] = useState(false);
-  
-//   const navigate = useNavigate(); // Initialize the useNavigate hook
-
-//   const handleChange = (e) => {
-//     setFormData({ ...formData, [e.target.name]: e.target.value });
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setError(''); // Reset error state on new submission
-    
-//     try {
-//       const response = await axios.post("http://localhost:5000/api/users/login", formData);
-      
-//       // Check for successful login and perform redirection
-//       if (response.status === 200) { // Assuming 200 means success
-//         // Optionally save the token or user information to localStorage
-//         localStorage.setItem('token', response.data.token); // Store token if returned
-//         navigate('/dashboard'); // Redirect to the dashboard
-//       } else {
-//         setError('Login failed. Please check your credentials.');
-//       }
-//     } catch (err) {
-//       // Handle specific error messages based on server response
-//       if (err.response && err.response.data && err.response.data.message) {
-//         setError(err.response.data.message); // Show specific error message from the server
-//       } else {
-//         setError('Login failed. Please check your credentials.'); // Generic message for other errors
-//       }
-//       console.error('Login error:', err);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div className="auth-container">
-//       <h2>Login</h2>
-//       {error && <p className="error">{error}</p>}
-//       <form onSubmit={handleSubmit} className="auth-form">
-//         <input
-//           type="email"
-//           name="email"
-//           placeholder="Email"
-//           value={formData.email}
-//           onChange={handleChange}
-//           required
-//         />
-//         <input
-//           type="password"
-//           name="password"
-//           placeholder="Password"
-//           value={formData.password}
-//           onChange={handleChange}
-//           required
-//         />
-//         <button type="submit" disabled={loading}>
-//           {loading ? 'Logging in...' : 'Login'}
-//         </button>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default Login;
-
 import React, { useState } from 'react';
 import axios from "axios";
-import { useNavigate } from 'react-router-dom'; // Import useNavigate for routing
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -89,7 +10,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate(); // Initialize the useNavigate hook
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -98,27 +19,27 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(''); // Reset error state on new submission
+    setError('');
 
     try {
-      const response = await axios.post("https://medicine-inventory-system.onrender.com/api/users/login", formData);
+      const response = await axios.post(
+        "https://medicine-inventory-system.onrender.com/api/users/login",
+        formData
+      );
 
-      // Check for successful login and perform redirection
-      if (response.status === 200) { // Assuming 200 means success
-        // Optionally save the token or user information to localStorage
-        localStorage.setItem('token', response.data.token); 
-        
-        localStorage.setItem("email", response.data.email.toLowerCase());// Store email in lowercase
-        navigate('/dashboard'); // Redirect to the dashboard
+      if (response.status === 200) {
+        // Store both token and email in localStorage
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('email', formData.email.toLowerCase()); // Store email in lowercase
+        navigate('/dashboard');
       } else {
         setError('Login failed. Please check your credentials.');
       }
     } catch (err) {
-      // Handle specific error messages based on server response
       if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message); // Show specific error message from the server
+        setError(err.response.data.message);
       } else {
-        setError('Login failed. Please check your credentials.'); // Generic message for other errors
+        setError('Login failed. Please check your credentials.');
       }
       console.error('Login error:', err);
     } finally {
@@ -127,60 +48,45 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
-          {error && <p className="mt-4 text-center text-red-500">{error}</p>}
-        </div>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">Email address</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <h2 className="text-3xl font-bold text-indigo-600 mb-6 text-center">Login</h2>
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+            {error}
           </div>
-
+        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              {loading ? 'Logging in...' : 'Sign In'}
-            </button>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+            />
           </div>
+          <div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="w-full rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
         </form>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <a href="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Sign up here
-          </a>
-        </p>
       </div>
     </div>
   );
