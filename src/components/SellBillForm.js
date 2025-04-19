@@ -91,7 +91,7 @@ const useItems = (initialGstNumber) => {
 
 const SellBillForm = () => {
   const [sellDetails, setSellDetails] = useState({
-    saleInvoiceNumber: localStorage.getItem('lastInvoiceNumber') || "INV005",
+    saleInvoiceNumber: "",
     date: new Date().toISOString().split("T")[0],
     receiptNumber: "",
     partyName: "",
@@ -99,20 +99,7 @@ const SellBillForm = () => {
     gstNumber: "",
   });
 
-  // Add state for tracking last invoice number
-  const [lastInvoiceNumber, setLastInvoiceNumber] = useState(
-    parseInt(localStorage.getItem('lastInvoiceNumber')?.replace('INV', '') || '5')
-  );
-
-  // Function to generate next invoice number
-  const generateNextInvoiceNumber = () => {
-    const nextNumber = lastInvoiceNumber + 1;
-    setLastInvoiceNumber(nextNumber);
-    const invoiceNumber = `INV${String(nextNumber).padStart(3, '0')}`;
-    localStorage.setItem('lastInvoiceNumber', invoiceNumber);
-    return invoiceNumber;
-  };
-
+  // Remove the lastInvoiceNumber state since we'll get it from the server
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -122,6 +109,110 @@ const SellBillForm = () => {
 
   // Use the custom hook for items management
   const { items, updateItem, addItem, resetItems } = useItems(sellDetails.gstNumber);
+
+  // Fetch the next invoice number when component mounts
+  useEffect(() => {
+    const fetchNextInvoiceNumber = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const email = localStorage.getItem('email');
+        
+        console.log('Fetching next invoice number with token:', token);
+        console.log('User email:', email);
+        
+        const response = await fetch('http://localhost:5000/api/bills/next-invoice-number', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ email })
+        });
+
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch next invoice number');
+        }
+
+        setSellDetails(prev => ({
+          ...prev,
+          saleInvoiceNumber: data.invoiceNumber,
+          date: new Date().toISOString().split("T")[0],
+          receiptNumber: "",
+          partyName: "",
+          email: "",
+          gstNumber: "",
+        }));
+      } catch (error) {
+        console.error('Error fetching next invoice number:', error);
+        setMessage(error.message);
+        setSellDetails(prev => ({
+          ...prev,
+          saleInvoiceNumber: "INV001",
+          date: new Date().toISOString().split("T")[0],
+          receiptNumber: "",
+          partyName: "",
+          email: "",
+          gstNumber: "",
+        }));
+      }
+    };
+
+    fetchNextInvoiceNumber();
+  }, []);
+
+  // Function to generate next invoice number
+  const generateNextInvoiceNumber = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const email = localStorage.getItem("email");
+      
+      console.log("Generating next invoice number with:", { token, email });
+      
+      const response = await fetch("http://localhost:5000/api/bills/next-invoice-number", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email })
+      });
+      
+      console.log("Response status:", response.status);
+      const responseData = await response.json();
+      console.log("Response data:", responseData);
+      
+      if (response.ok) {
+        return responseData.invoiceNumber;
+      } else {
+        setMessage(`Error generating next invoice number: ${responseData.message || 'Unknown error'}`);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error in generateNextInvoiceNumber:", error);
+      setMessage(`Error generating next invoice number: ${error.message}`);
+      return null;
+    }
+  };
+
+  // Reset function to also handle invoice number generation
+  const resetForm = async () => {
+    const nextInvoiceNumber = await generateNextInvoiceNumber();
+    if (nextInvoiceNumber) {
+      setSellDetails(prev => ({
+        ...prev,
+        saleInvoiceNumber: nextInvoiceNumber,
+        receiptNumber: "",
+        partyName: "",
+        email: "",
+        gstNumber: "",
+        date: new Date().toISOString().split("T")[0],
+      }));
+    }
+  };
 
   // Debounce function
   const debounce = (func, delay) => {
@@ -377,18 +468,6 @@ const SellBillForm = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setSellDetails(prev => ({
-      ...prev,
-      saleInvoiceNumber: generateNextInvoiceNumber(),
-      receiptNumber: "",
-      partyName: "",
-      email: "",
-      gstNumber: "",
-      date: new Date().toISOString().split("T")[0],
-    }));
   };
 
   return (

@@ -108,7 +108,7 @@ const Login = () => {
         // Optionally save the token or user information to localStorage
         localStorage.setItem('token', response.data.token); 
         
-        localStorage.setItem("email",response.data.email);// Store token if returned
+        localStorage.setItem("email", response.data.email.toLowerCase());// Store email in lowercase
         navigate('/dashboard'); // Redirect to the dashboard
       } else {
         setError('Login failed. Please check your credentials.');
