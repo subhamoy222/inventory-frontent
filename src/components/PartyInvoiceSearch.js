@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const PartyInvoiceSearch = () => {
   const [partyName, setPartyName] = useState('');
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const email = localStorage.getItem('email');
+    if (!token || !email) {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const searchInvoices = async () => {
     try {
@@ -12,8 +23,11 @@ const PartyInvoiceSearch = () => {
       setError('');
       
       const token = localStorage.getItem('token');
-      if (!token) {
+      const email = localStorage.getItem('email');
+      
+      if (!token || !email) {
         setError('Please login first');
+        navigate('/login');
         return;
       }
 
@@ -47,8 +61,12 @@ const PartyInvoiceSearch = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-6">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-8">
         <div className="mb-8 text-center">
-          <h2 className="text-3xl font-bold text-indigo-600 mb-2">Search Party Invoices</h2>
+          <h2 className="text-3xl font-bold text-indigo-600 mb-2">Search Customer Invoices</h2>
           <div className="h-1 w-20 bg-indigo-500 mx-auto rounded-full"></div>
+          <p className="mt-4 text-gray-600">
+            Enter the customer's name to view their purchase history and invoices.
+            This is the same name you used when creating sale bills or return bills.
+          </p>
         </div>
 
         <div className="mb-8">
@@ -57,7 +75,7 @@ const PartyInvoiceSearch = () => {
               type="text"
               value={partyName}
               onChange={(e) => setPartyName(e.target.value)}
-              placeholder="Enter party name"
+              placeholder="Enter customer name"
               className="flex-1 rounded-lg border-2 border-indigo-100 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 p-3 transition-colors"
             />
             <button
@@ -111,7 +129,7 @@ const PartyInvoiceSearch = () => {
 
         {!loading && invoices.length === 0 && !error && (
           <div className="text-center text-gray-500">
-            No invoices found. Try searching with a different party name.
+            No invoices found for this customer. Make sure you're using the exact name as entered in the sale bill.
           </div>
         )}
       </div>
